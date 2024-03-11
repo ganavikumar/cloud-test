@@ -27,6 +27,7 @@ pipeline {
                     serverId: "ARTIFACTORY_SERVER",
                     releaseRepo: ARTIFACTORY_VIRTUAL_RELEASE_REPO,
                     snapshotRepo: ARTIFACTORY_VIRTUAL_SNAPSHOT_REPO
+                    
                 )
             }
         }
