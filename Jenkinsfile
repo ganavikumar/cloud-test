@@ -1,55 +1,28 @@
-pipeline {
-    agent any
-    stages {
-        stage ('Clone') {
-            steps {
-                git branch: 'master', url: "https://github.com/jfrog/project-examples.git"
-            }
-        }
+node {
+    def server
+    def rtMaven = Artifactory.newMavenBuild()
+    def buildInfo
 
-        stage ('Artifactory configuration') {
-            steps {
-                rtServer (
-                    id: "ARTIFACTORY_SERVER",
-                    url: SERVER_URL,
-                    credentialsId: CREDENTIALS
-                )
+    stage ('Clone') {
+        git url: 'https://github.com/jfrog/project-examples.git'
+    }
 
-                rtMavenDeployer (
-                    id: "MAVEN_DEPLOYER",
-                    serverId: "ARTIFACTORY_SERVER",
-                    releaseRepo: ARTIFACTORY_LOCAL_RELEASE_REPO,
-                    snapshotRepo: ARTIFACTORY_LOCAL_SNAPSHOT_REPO
-                )
+    stage ('Artifactory configuration') {
+        // Obtain an Artifactory server instance, defined in Jenkins --> Manage Jenkins --> Configure System:
+        server = Artifactory.server SERVER_ID
 
-                rtMavenResolver (
-                    id: "MAVEN_RESOLVER",
-                    serverId: "ARTIFACTORY_SERVER",
-                    releaseRepo: ARTIFACTORY_VIRTUAL_RELEASE_REPO,
-                    snapshotRepo: ARTIFACTORY_VIRTUAL_SNAPSHOT_REPO
-                    
-                )
-            }
-        }
+        // Tool name from Jenkins configuration
+        rtMaven.tool = MAVEN_TOOL
+        rtMaven.deployer releaseRepo: ARTIFACTORY_LOCAL_RELEASE_REPO, snapshotRepo: ARTIFACTORY_LOCAL_SNAPSHOT_REPO, server: server
+        rtMaven.resolver releaseRepo: ARTIFACTORY_VIRTUAL_RELEASE_REPO, snapshotRepo: ARTIFACTORY_VIRTUAL_SNAPSHOT_REPO, server: server
+        buildInfo = Artifactory.newBuildInfo()
+    }
 
-        stage ('Exec Maven') {
-            steps {
-                rtMavenRun (
-                    tool: MAVEN_TOOL, // Tool name from Jenkins configuration
-                    pom: 'maven-examples/maven-example/pom.xml',
-                    goals: 'clean install',
-                    deployerId: "MAVEN_DEPLOYER",
-                    resolverId: "MAVEN_RESOLVER"
-                )
-            }
-        }
+    stage ('Exec Maven') {
+        rtMaven.run pom: 'maven-examples/maven-example/pom.xml', goals: 'clean install', buildInfo: buildInfo
+    }
 
-        stage ('Publish build info') {
-            steps {
-                rtPublishBuildInfo (
-                    serverId: "ARTIFACTORY_SERVER"
-                )
-            }
-        }
+    stage ('Publish build info') {
+        server.publishBuildInfo buildInfo
     }
 }
