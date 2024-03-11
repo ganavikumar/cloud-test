@@ -1,5 +1,4 @@
 node {
-    
     def server
     def rtMaven = Artifactory.newMavenBuild()
     def buildInfo
